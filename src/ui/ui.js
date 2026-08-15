@@ -139,11 +139,22 @@ export class GameUI {
     }
   }
 
-  _renderOptions() {
-    const host = document.querySelector('#opt-grid');
+  /**
+   * 渲染规则编辑面板（单机设置与联机建房共用）。
+   * @param {object} [rules] 要编辑的规则对象
+   * @param {string} [hostSel] 面板容器选择器
+   * @param {string} [summarySel] 规则摘要元素选择器
+   * @param {Function} [onEdit] 任何规则被修改后的回调
+   */
+  _renderOptions(rules = this.editRules, hostSel = '#opt-grid', summarySel = '#rule-summary', onEdit = null) {
+    const host = document.querySelector(hostSel);
     if (!host) return;
-    const r = this.editRules;
+    const r = rules;
     host.innerHTML = '';
+    const changed = () => {
+      this._refreshSummary(r, summarySel);
+      if (onEdit) onEdit(r);
+    };
 
     const addSwitch = (label, key, extra = '') => {
       const row = document.createElement('div');
@@ -151,7 +162,7 @@ export class GameUI {
       row.innerHTML = `
         <div><label>${label}</label><div class="hint">${extra}</div></div>
         <span class="switch"><input type="checkbox" id="opt-${key}" ${r[key] ? 'checked' : ''}><span class="slider"></span></span>`;
-      row.querySelector('input').addEventListener('change', (e) => { r[key] = e.target.checked; this._refreshSummary(); });
+      row.querySelector('input').addEventListener('change', (e) => { r[key] = e.target.checked; changed(); });
       host.appendChild(row);
     };
 
@@ -172,7 +183,7 @@ export class GameUI {
       const input = host.querySelector(`#opt-${key}`);
       if (!input) continue;
       input.checked = !!r.suits[idx];
-      input.addEventListener('change', (e) => { r.suits[idx] = e.target.checked; this._refreshSummary(); });
+      input.addEventListener('change', (e) => { r.suits[idx] = e.target.checked; changed(); });
     }
 
     // 癞子数量
@@ -187,7 +198,7 @@ export class GameUI {
     laiziRow.querySelector('input').addEventListener('input', (e) => {
       r.laiziCount = Number(e.target.value);
       laiziRow.querySelector('#opt-laizi-val').textContent = r.laiziCount;
-      this._refreshSummary();
+      changed();
     });
     host.appendChild(laiziRow);
 
@@ -203,7 +214,7 @@ export class GameUI {
     minFanRow.querySelector('input').addEventListener('input', (e) => {
       r.minFan = Number(e.target.value);
       minFanRow.querySelector('#opt-minfan-val').textContent = r.minFan;
-      this._refreshSummary();
+      changed();
     });
     host.appendChild(minFanRow);
 
@@ -217,7 +228,7 @@ export class GameUI {
       </select>`;
     baseRow.querySelector('select').addEventListener('change', (e) => {
       r.baseScore = Number(e.target.value);
-      this._refreshSummary();
+      changed();
     });
     host.appendChild(baseRow);
 
@@ -234,17 +245,17 @@ export class GameUI {
       r.scoringSet = e.target.value;
       if (e.target.value === 'fan-points') r.fanTable = 'guobiao';
       else r.fanTable = 'custom';
-      this._refreshSummary();
+      changed();
     });
     host.appendChild(scoreRow);
 
-    this._refreshSummary();
+    this._refreshSummary(r, summarySel);
   }
 
-  _refreshSummary() {
-    const el = document.querySelector('#rule-summary');
+  _refreshSummary(rules = this.editRules, summarySel = '#rule-summary') {
+    const el = document.querySelector(summarySel);
     if (!el) return;
-    const res = normalizeRules(this.editRules);
+    const res = normalizeRules(rules);
     if (!res.ok) {
       el.textContent = `⚠ ${res.error}`;
       el.style.color = '#ff9a7c';
@@ -512,10 +523,15 @@ export class GameUI {
         <div class="lobby-col">
           <div class="lobby-title">创建房间</div>
           <div class="opt-row">
-            <div><label>玩法</label></div>
+            <div><label>玩法预设</label></div>
             <select class="select-box" id="lobby-preset">
               ${PRESETS.map((p) => `<option value="${p.id}" ${p.id === 'guangdong' ? 'selected' : ''}>${p.name}</option>`).join('')}
             </select>
+          </div>
+          <button class="btn ghost wide" id="btn-toggle-rules" type="button">⚙ 展开规则调整</button>
+          <div id="online-opt-wrap" style="display:none;">
+            <div class="opt-grid" id="online-opt-grid"></div>
+            <span id="online-rule-summary" style="font-size:12px;color:rgba(243,226,189,.65);"></span>
           </div>
           <button class="btn primary wide" id="btn-create-room">创建房间</button>
         </div>
@@ -532,11 +548,48 @@ export class GameUI {
     mask.appendChild(modal);
     document.body.appendChild(mask);
 
+    // 联机自定义规则面板（与单机设置共用同一套编辑器）
+    if (!this.onlineEditRules) this.onlineEditRules = cloneRules(getPreset('guangdong'));
+    const presetSelect = modal.querySelector('#lobby-preset');
+    const ruleWrap = modal.querySelector('#online-opt-wrap');
+    const renderOnlineRules = () => {
+      this._renderOptions(
+        this.onlineEditRules,
+        '#online-opt-grid',
+        '#online-rule-summary',
+        (r) => {
+          // 任何调整都会脱离预设，标记为自定义玩法
+          r.id = 'custom';
+          r.name = '自定义玩法';
+          presetSelect.value = 'custom';
+        },
+      );
+    };
+    presetSelect.addEventListener('change', () => {
+      this.onlineEditRules = cloneRules(getPreset(presetSelect.value));
+      if (presetSelect.value === 'custom') {
+        ruleWrap.style.display = '';
+        modal.querySelector('#btn-toggle-rules').textContent = '⚙ 收起规则调整';
+      }
+      renderOnlineRules();
+    });
+    modal.querySelector('#btn-toggle-rules').addEventListener('click', () => {
+      const open = ruleWrap.style.display === 'none';
+      ruleWrap.style.display = open ? '' : 'none';
+      modal.querySelector('#btn-toggle-rules').textContent = open ? '⚙ 收起规则调整' : '⚙ 展开规则调整';
+      if (open) renderOnlineRules();
+    });
+    renderOnlineRules();
+
     modal.querySelector('#btn-create-room').addEventListener('click', () => {
       const nameInput = modal.querySelector('#lobby-name');
-      const presetId = modal.querySelector('#lobby-preset').value;
       this.playerName = (nameInput.value || '').trim() || '玩家';
-      const rules = cloneRules(getPreset(presetId));
+      const res = normalizeRules(this.onlineEditRules);
+      if (!res.ok) {
+        this.toast(res.error, 2600);
+        return;
+      }
+      const rules = cloneRules(res.rules);
       if (handlers.onCreate) handlers.onCreate(this.playerName, rules);
     });
     modal.querySelector('#btn-join-room').addEventListener('click', () => {
