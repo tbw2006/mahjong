@@ -22,9 +22,9 @@ const HUMAN_SEAT = 0;
 const SEAT_LABELS = ['你', '下家', '对家', '上家'];
 // 机器人出牌速度档位（顶栏可选，默认慢速）
 const SPEED_DELAYS = {
-  slow: { min: 2600, max: 3800 },
-  normal: { min: 1300, max: 2100 },
-  fast: { min: 500, max: 900 },
+  slow: { min: 3000, max: 10000 },
+  normal: { min: 1500, max: 3000 },
+  fast: { min: 600, max: 1200 },
 };
 const IS_TOUCH = new URLSearchParams(location.search).has('touch') ||
   (navigator.maxTouchPoints > 0) ||

@@ -112,7 +112,7 @@ async function playUntilFinished(client, other) {
 
 const server = spawn('node', ['server/server.js'], {
   cwd: new URL('..', import.meta.url).pathname,
-  env: { ...process.env, PORT: String(PORT) },
+  env: { ...process.env, PORT: String(PORT), BOT_FAST: '1' },
   stdio: ['ignore', 'pipe', 'pipe'],
 });
 

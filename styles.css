@@ -207,7 +207,7 @@ body {
   pointer-events: none;
 }
 .tile-mini { width: var(--mini-tile-w); aspect-ratio: 3 / 4; border-radius: 3px; }
-.tile-mini.laizi::after { width: 12px; height: 12px; font-size: 8px; line-height: 10px; top: -5px; right: -5px; }
+.tile-mini.laizi::after { width: 10px; height: 10px; font-size: 7px; line-height: 9px; top: 1px; right: 1px; }
 .tile-meld { width: var(--meld-tile-w); aspect-ratio: 3 / 4; border-radius: 3px; }
 .tile-back { cursor: default; }
 .tile.removed { opacity: .4; }
@@ -232,20 +232,28 @@ body {
 .tile.last-discard::after {
   content: '新';
   position: absolute;
-  top: -9px;
-  right: -9px;
-  width: 18px;
-  height: 18px;
+  top: 1px;
+  right: 1px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
   background: linear-gradient(180deg, #ff5b45, #c72e1d);
   border: 1px solid #fff0d8;
   color: #fff;
-  font-size: 11px;
+  font-size: 8px;
   font-weight: 800;
-  line-height: 16px;
+  line-height: 10px;
   text-align: center;
   z-index: 10;
   pointer-events: none;
+}
+.tile-big.last-discard::after {
+  top: 2px;
+  right: 2px;
+  width: 18px;
+  height: 18px;
+  font-size: 11px;
+  line-height: 16px;
 }
 @keyframes discard-pop {
   0% { filter: brightness(1.6); }
@@ -849,4 +857,7 @@ input[type="range"] { width: 120px; accent-color: #d9b56b; }
   :root { --big-tile-w: clamp(38px, 6.5vh, 64px); --mini-tile-w: 22px; }
   .opp-left .tile-mini, .opp-right .tile-mini { width: 18px; }
   .opp-left .opp-backs, .opp-right .opp-backs { grid-template-columns: repeat(3, 18px); }
+  /* 小屏：左右牌河 3 列紧凑排布并让开记分板/我的副露，容量 27 张不溢出 */
+  .river-left, .river-right { top: 26%; bottom: 33%; width: 52px; gap: 2px; }
+  .river-left .tile-mini, .river-right .tile-mini { width: 16px; }
 }
