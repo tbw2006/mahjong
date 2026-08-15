@@ -26,7 +26,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
 const PORT = Number(process.env.PORT || 8000);
 const TURN_MS = 25000;
-const CLAIM_MS = 8000;
+const CLAIM_MS = 10000;
 const NEXT_HAND_MS = 7000;
 const LOBBY_GC_MS = 120000;
 
@@ -239,7 +239,7 @@ function scheduleBotTurn(room, seat, delay = (process.env.BOT_FAST === '1' ? 40 
   }, delay);
 }
 
-function scheduleBotClaim(room, seat, delay = (process.env.BOT_FAST === '1' ? 20 + Math.random() * 60 : 1800 + Math.random() * 1200)) {
+function scheduleBotClaim(room, seat, delay = (process.env.BOT_FAST === '1' ? 20 + Math.random() * 60 : 3000 + Math.random() * 7000)) {
   if (room.timers[seat]) return;
   room.timers[seat] = setTimeout(() => {
     delete room.timers[seat];

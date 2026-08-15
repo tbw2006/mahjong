@@ -243,11 +243,15 @@ class LocalGameController {
               humanPrompted = true;
               break;
             }
+            // 机器人对有牌可碰/杠/吃/胡时，也要“思考”3~10 秒再响应
+            if (seat !== HUMAN_SEAT && options.length) {
+              await sleep(randDelay());
+            }
             const act = seat === HUMAN_SEAT ? { type: ACTIONS.PASS, seat } : this.bots[seat].decideClaim(state, seat, options);
             const res = this.engine.take(act);
             this._applyEvents(res.events);
             if (!res.ok) { this.ui.toast(`响应异常：${res.error}`, 2500); break; }
-            await sleep(randDelay(0.6));
+            if (seat !== HUMAN_SEAT) await sleep(250); // 多个响应之间的小间隔
           }
           if (humanPrompted) break;
           if (this.engine.pending.phase === 'claim') continue;
