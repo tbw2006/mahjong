@@ -102,13 +102,20 @@ class HandInput {
 /* ------------------------------------------------------------------ */
 
 class LocalGameController {
-  constructor(ui, renderer) {
+  constructor(ui, renderer, onExit = null) {
     this.ui = ui;
     this.renderer = renderer;
+    this.onExit = onExit;
     this.engine = null;
     this.bots = [0, 1, 2, 3].map((seat) => new BotPlayer(seat, { rng: Math.random }));
     this.busy = false;
     this.handInput = new HandInput(ui, (tile) => this.submit({ type: ACTIONS.DISCARD, seat: HUMAN_SEAT, tile }), renderer);
+  }
+
+  stop() {
+    this.engine = null;
+    this.ui.setActions(null);
+    this.handInput.clearSelection();
   }
 
   startNewGame(rules) {
@@ -148,8 +155,12 @@ class LocalGameController {
         if (state.status === 'finished') {
           this._render();
           await sleep(650);
-          if (state.drawGame) this.ui.showDrawGame(state, HUMAN_SEAT);
-          else this.ui.showResult(state, HUMAN_SEAT);
+          const opts = {
+            altText: '⌂ 主菜单',
+            onAlt: () => { this.stop(); if (this.onExit) this.onExit(); },
+          };
+          if (state.drawGame) this.ui.showDrawGame(state, HUMAN_SEAT, opts);
+          else this.ui.showResult(state, HUMAN_SEAT, opts);
           break;
         }
         const pending = this.engine.pending;
@@ -234,6 +245,7 @@ class NetworkGameController {
     this.playerName = '';
     this.state = null;
     this.resultShownForHand = -1;
+    this.exitToModes = false;
     this.net = new NetworkClient({
       onOpen: () => this._onOpen(),
       onMessage: (msg) => this._onMessage(msg),
@@ -398,7 +410,13 @@ class NetworkGameController {
         this._clearSession();
         this.ui.closeLobbyModal();
         this.ui.setRuleChip('未开局');
-        this.enterLobby();
+        if (this.exitToModes) {
+          this.exitToModes = false;
+          this.net.disconnect();
+          this.onBackToModes();
+        } else {
+          this.enterLobby();
+        }
         break;
       default:
         break;
@@ -412,7 +430,13 @@ class NetworkGameController {
   }
 
   leaveRoom() {
-    if (this.roomId) this.net.send({ type: 'leave-room' });
+    this.exitToModes = true;
+    if (this.roomId) {
+      this.net.send({ type: 'leave-room' });
+    } else {
+      this.net.disconnect();
+      this.onBackToModes();
+    }
   }
 
   _copyRoomCode(code) {
@@ -470,14 +494,15 @@ class App {
   constructor() {
     this.ui = new GameUI();
     this.renderer = new TableRenderer();
-    this.local = new LocalGameController(this.ui, this.renderer);
+    this.local = new LocalGameController(this.ui, this.renderer, () => this.showModeSelect());
     this.network = new NetworkGameController(this.ui, this.renderer, () => this.showModeSelect());
     this.mode = null;
 
     this.ui.bind({
       onStartRule: (rules) => { this.mode = 'local'; this.local.startNewGame(rules); },
       onNextHand: () => this.local.nextHand(),
-      onNewSettings: () => this.ui.showSettings(),
+      onNewSettings: () => this.showModeSelect(),
+      onHome: () => this.homeToModes(),
       onSettings: () => {
         if (this.mode === 'online' && this.network.roomId) {
           this.ui.showRoomPanel({
@@ -512,6 +537,19 @@ class App {
       onLocal: () => { this.mode = 'local'; this.ui.showSettings(); },
       onOnline: () => { this.mode = 'online'; this.network.enterLobby(); },
     });
+  }
+
+  /** 任意界面返回主菜单：停止本地对局 / 离开联机房间 */
+  homeToModes() {
+    const localPlaying = this.local.engine && this.local.engine.state.status === 'playing';
+    const netPlaying = this.network.state && this.network.state.status === 'playing';
+    if ((localPlaying || netPlaying) && !window.confirm('对局进行中，确定退出并返回主菜单吗？')) return;
+    this.ui._removeModal();
+    this.ui.setActions(null);
+    this.local.stop();
+    this.network.leaveRoom();
+    this.mode = null;
+    this.showModeSelect();
   }
 }
 
