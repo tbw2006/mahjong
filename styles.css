@@ -211,9 +211,110 @@ body {
 .tile-back { cursor: default; }
 .tile.removed { opacity: .22; filter: grayscale(.9); }
 .tile.last-discard {
-  animation: pulse-gold 1.1s ease-in-out infinite;
+  transform: scale(1.22);
+  z-index: 9;
+  animation: discard-pop .5s cubic-bezier(.2,1.6,.4,1), pulse-gold 1.2s ease-in-out .5s infinite;
+}
+.tile.last-discard::after {
+  content: '新';
+  position: absolute;
+  top: -9px;
+  right: -9px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: linear-gradient(180deg, #ff5b45, #c72e1d);
+  border: 1px solid #fff0d8;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 16px;
+  text-align: center;
+  z-index: 10;
+  pointer-events: none;
+}
+@keyframes discard-pop {
+  0% { transform: scale(1.5); filter: brightness(1.6); }
+  100% { transform: scale(1.22); filter: brightness(1); }
 }
 .new-tile { animation: deal-in .3s ease-out; }
+
+/* 刚形成的副露高亮 */
+.just-melded {
+  animation: meld-pop .7s cubic-bezier(.2,1.5,.4,1);
+  filter: drop-shadow(0 0 10px rgba(255, 214, 110, .95));
+}
+.just-melded .meld-tiles .tile {
+  box-shadow: 0 0 0 2px rgba(255, 214, 110, .85), 0 0 16px rgba(255, 190, 60, .7);
+}
+@keyframes meld-pop {
+  0% { transform: scale(0.5) rotate(-4deg); opacity: 0; }
+  55% { transform: scale(1.18) rotate(1.5deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0); opacity: 1; }
+}
+
+/* ---------------- 出牌/吃碰杠 特效提示 ---------------- */
+#action-flash {
+  position: fixed;
+  top: 13%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 80;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+}
+#action-flash.show {
+  animation: flash-in .25s ease-out forwards, flash-out .5s ease-in 1.6s forwards;
+}
+#action-flash .flash-burst {
+  position: absolute;
+  inset: -70px;
+  background: url('assets/effects/burst.svg') center / contain no-repeat;
+  animation: spin 2.2s linear infinite;
+  opacity: .95;
+}
+#action-flash .flash-body {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 22px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(40, 18, 6, .92), rgba(16, 7, 2, .92));
+  border: 2px solid #ffd66e;
+  box-shadow: 0 0 30px rgba(255, 190, 60, .55), inset 0 1px 0 rgba(255, 255, 255, .15);
+  color: #ffe9b8;
+  font-size: clamp(14px, 2vw, 20px);
+  font-weight: 800;
+  letter-spacing: 2px;
+  white-space: nowrap;
+}
+#action-flash .flash-kind {
+  min-width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, #ffd66e, #d99b28);
+  color: #3a260c;
+  font-size: 18px;
+  font-weight: 900;
+}
+#action-flash.kind-discard .flash-body { font-size: clamp(13px, 1.7vw, 17px); }
+#action-flash.kind-discard .flash-burst { inset: -46px; opacity: .75; }
+#action-flash.kind-win .flash-body { background: linear-gradient(180deg, #7a1f12, #3a0e06); border-color: #ffb36b; }
+@keyframes flash-in {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(.4); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+@keyframes flash-out {
+  to { opacity: 0; transform: translate(-50%, -50%) scale(1.15); }
+}
+@keyframes spin { to { transform: rotate(360deg); } }
 
 @keyframes deal-in {
   0% { transform: translateY(26px) scale(.7); opacity: 0; }

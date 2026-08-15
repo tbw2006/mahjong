@@ -72,9 +72,9 @@ export class TableRenderer {
 
     this.renderPlaque(state);
     this.renderScoreboard(state, humanSeat);
-    this.renderOpponent(state, humanSeat, 1, 'right');
-    this.renderOpponent(state, humanSeat, 2, 'top');
-    this.renderOpponent(state, humanSeat, 3, 'left');
+    this.renderOpponent(state, humanSeat, 1, 'right', lastEvent);
+    this.renderOpponent(state, humanSeat, 2, 'top', lastEvent);
+    this.renderOpponent(state, humanSeat, 3, 'left', lastEvent);
     this.renderRiver(state, humanSeat, 0, 'bottom');
     this.renderRiver(state, humanSeat, 1, 'right');
     this.renderRiver(state, humanSeat, 2, 'top');
@@ -154,11 +154,13 @@ export class TableRenderer {
     }
   }
 
-  renderOpponent(state, humanSeat, rel, side) {
+  renderOpponent(state, humanSeat, rel, side, lastEvent = null) {
     const el = this.$(`opp-${side}`);
     if (!el) return;
     const seat = (humanSeat + rel) % 4;
     const p = state.players[seat];
+    const justMelded = lastEvent && lastEvent.seat === seat &&
+      ['meld', 'an-gang', 'bu-gang'].includes(lastEvent.type);
     el.innerHTML = '';
 
     const plate = document.createElement('div');
@@ -172,9 +174,10 @@ export class TableRenderer {
 
     const meldBox = document.createElement('div');
     meldBox.className = 'opp-melds';
-    for (const meld of p.melds) {
+    p.melds.forEach((meld, mi) => {
       const mg = document.createElement('div');
       mg.className = 'meld-group';
+      if (justMelded && mi === p.melds.length - 1) mg.classList.add('just-melded');
       const fromTag = meld.sub === 'an'
         ? '<span class="meld-from">暗杠</span>'
         : `<span class="meld-from">${meld.type === 'gang' ? '杠' : meld.type === 'pong' ? '碰' : '吃'}</span>`;
@@ -184,7 +187,7 @@ export class TableRenderer {
       for (const t of meld.tiles) tiles.appendChild(this.tileEl(t, 'tile tile-mini', state.laizi.includes(t)));
       mg.appendChild(tiles);
       meldBox.appendChild(mg);
-    }
+    });
 
     // 上家：名牌 + 背面 + 副露横排；左右家：名牌 + 副露 + 背面竖排（控制宽度）
     if (side === 'top') {
@@ -208,7 +211,8 @@ export class TableRenderer {
     }
     entries.forEach((d, i) => {
       const t = this.tileEl(d.tile, d.removed ? 'tile tile-mini removed' : 'tile tile-mini', false);
-      if (i === lastActiveIdx && state.lastDiscard) t.classList.add('last-discard');
+      // 该玩家最新一张未被碰/杠/吃走的牌始终保持高亮，直到下一次出牌
+      if (i === lastActiveIdx) t.classList.add('last-discard');
       el.appendChild(t);
     });
   }
@@ -220,10 +224,13 @@ export class TableRenderer {
     const p = state.players[humanSeat];
     handEl.innerHTML = '';
     meldsEl.innerHTML = '';
+    const justMelded = lastEvent && lastEvent.seat === humanSeat &&
+      ['meld', 'an-gang', 'bu-gang'].includes(lastEvent.type);
 
-    for (const meld of p.melds) {
+    p.melds.forEach((meld, mi) => {
       const mg = document.createElement('div');
       mg.className = 'meld-group my';
+      if (justMelded && mi === p.melds.length - 1) mg.classList.add('just-melded');
       const fromTag = meld.sub === 'an'
         ? '<span class="meld-from">暗杠</span>'
         : `<span class="meld-from">${meld.type === 'gang' ? '杠' : meld.type === 'pong' ? '碰' : '吃'}</span>`;
@@ -233,7 +240,7 @@ export class TableRenderer {
       for (const t of meld.tiles) tiles.appendChild(this.tileEl(t, 'tile tile-meld', state.laizi.includes(t)));
       mg.appendChild(tiles);
       meldsEl.appendChild(mg);
-    }
+    });
 
     const sorted = p.concealed.slice().sort((a, b) => a - b);
     let drawnIndex = -1;

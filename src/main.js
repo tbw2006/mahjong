@@ -14,11 +14,13 @@ import { TableRenderer } from './render/renderer.js';
 import { GameUI } from './ui/ui.js';
 import { SOUNDS, isSoundEnabled } from './ui/audio.js';
 import { describeRules } from './core/rules.js';
+import { tileName } from './core/tiles.js';
 import { ACTIONS } from './core/protocol.js';
 import { NetworkClient } from './net/network.js';
 
 const HUMAN_SEAT = 0;
-const BOT_DELAY = { min: 420, max: 860 };
+const BOT_DELAY = { min: 1100, max: 1900 }; // 机器人节奏放慢，便于观察
+const SEAT_LABELS = ['你', '下家', '对家', '上家'];
 const IS_TOUCH = new URLSearchParams(location.search).has('touch') ||
   (navigator.maxTouchPoints > 0) ||
   (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) ||
@@ -36,6 +38,41 @@ function playEventSounds(evt) {
     case 'win': SOUNDS.win(); break;
     case 'error': SOUNDS.error(); break;
     default: break;
+  }
+}
+
+function seatLabel(viewSeat, seat) {
+  return SEAT_LABELS[(seat - viewSeat + 4) % 4];
+}
+
+/** 事件 → 音效 + 中央特效提示（本地/联机共用） */
+function processGameEvent(evt, viewSeat, ui) {
+  playEventSounds(evt);
+  const label = seatLabel(viewSeat, evt.seat);
+  switch (evt.type) {
+    case 'discard':
+      ui.showActionFlash(`${label} 打出 ${tileName(evt.tile)}`, 'discard', '打');
+      break;
+    case 'meld': {
+      const m = evt.meld || {};
+      const kind = m.type === 'pong' ? '碰' : m.type === 'chi' ? '吃' : '杠';
+      ui.showActionFlash(`${label} ${kind} ${tileName((m.tiles || [])[0])}`, 'meld', kind);
+      break;
+    }
+    case 'an-gang':
+      ui.showActionFlash(`${label} 暗杠 ${tileName(evt.tile)}`, 'gang', '杠');
+      break;
+    case 'bu-gang':
+      ui.showActionFlash(`${label} 补杠 ${tileName(evt.tile)}`, 'gang', '杠');
+      break;
+    case 'win':
+      ui.showActionFlash(`${label} 胡牌！`, 'win', '胡');
+      break;
+    case 'claim-open':
+      if (evt.kind === 'robGang') ui.toast('有人补杠，可抢杠胡！', 1800);
+      break;
+    default:
+      break;
   }
 }
 
@@ -178,12 +215,13 @@ class LocalGameController {
             } }, (act) => this.submit(act));
             break;
           }
+          // 机器人行动前停顿，方便看清上一家的出牌与副露
+          await sleep(randDelay());
           const options = this.engine.getTurnOptions(seat);
           const act = this.bots[seat].decideTurn(state, options);
           const res = this.engine.take(act);
           this._applyEvents(res.events);
           if (!res.ok) { this.ui.toast(`机器人动作异常：${res.error}`, 2500); break; }
-          await sleep(randDelay());
         } else if (pending.phase === 'claim') {
           let humanPrompted = false;
           for (const seat of pending.seats) {
@@ -216,8 +254,7 @@ class LocalGameController {
     let last = null;
     for (const evt of events) {
       last = evt;
-      playEventSounds(evt);
-      if (evt.type === 'claim-open' && evt.kind === 'robGang') this.ui.toast('有人补杠，可抢杠胡！', 1600);
+      processGameEvent(evt, HUMAN_SEAT, this.ui);
     }
     this._render(last);
   }
@@ -378,7 +415,7 @@ class NetworkGameController {
         let last = null;
         for (const evt of msg.events || []) {
           last = evt;
-          playEventSounds(evt);
+          processGameEvent(evt, this.seat ?? 0, this.ui);
           if (evt.type === 'hand-start') this.resultShownForHand = -1;
         }
         this._render(last);

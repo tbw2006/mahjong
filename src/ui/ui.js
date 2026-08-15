@@ -65,6 +65,27 @@ export class GameUI {
     this._toastTimer = setTimeout(() => el.classList.remove('show'), ms);
   }
 
+  /**
+   * 出牌 / 吃碰杠 / 胡牌 的中央特效提示。
+   * @param {string} text 例如：下家 打出 三万
+   * @param {string} kind discard | meld | gang | win
+   * @param {string} glyph 圆形徽标里的字：牌/碰/吃/杠/胡
+   */
+  showActionFlash(text, kind = 'discard', glyph = '牌') {
+    const el = this.$('#action-flash');
+    if (!el) return;
+    const kindEl = el.querySelector('.flash-kind');
+    const textEl = el.querySelector('.flash-text');
+    if (kindEl) kindEl.textContent = glyph;
+    if (textEl) textEl.textContent = text;
+    el.className = `kind-${kind}`;
+    el.classList.remove('show');
+    void el.offsetWidth; // 重置动画
+    el.classList.add('show');
+    clearTimeout(this._flashTimer);
+    this._flashTimer = setTimeout(() => el.classList.remove('show'), 2400);
+  }
+
   /* ---------------- 设置弹窗 ---------------- */
 
   showSettings() {
