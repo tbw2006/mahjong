@@ -234,26 +234,31 @@ class LocalGameController {
           this._applyEvents(res.events);
           if (!res.ok) { this.ui.toast(`机器人动作异常：${res.error}`, 2500); break; }
         } else if (pending.phase === 'claim') {
-          let humanPrompted = false;
-          for (const seat of pending.seats) {
-            const options = this.engine.getClaimOptions(seat, pending.tile, pending.from, pending.kind);
-            if (seat === HUMAN_SEAT && options.length) {
+          // 玩家可响应时优先立即弹提示，不让排在前面的机器人思考拖慢
+          if (pending.seats.includes(HUMAN_SEAT)) {
+            const options = this.engine.getClaimOptions(HUMAN_SEAT, pending.tile, pending.from, pending.kind);
+            if (options.length) {
               this._render();
-              this.ui.setActions({ kind: 'claim', seat, options, claim: { tile: pending.tile, from: pending.from, kind: pending.kind } }, (act) => this.submit(act));
-              humanPrompted = true;
+              this.ui.setActions({ kind: 'claim', seat: HUMAN_SEAT, options, claim: { tile: pending.tile, from: pending.from, kind: pending.kind } }, (act) => this.submit(act));
               break;
             }
-            // 机器人对有牌可碰/杠/吃/胡时，也要“思考”3~10 秒再响应
-            if (seat !== HUMAN_SEAT && options.length) {
+            const res = this.engine.take({ type: ACTIONS.PASS, seat: HUMAN_SEAT });
+            this._applyEvents(res.events);
+            if (!res.ok) { this.ui.toast(`响应异常：${res.error}`, 2500); break; }
+            continue;
+          }
+          // 其余都是机器人：有可响应项时思考 3~10 秒再决定
+          for (const seat of pending.seats) {
+            const options = this.engine.getClaimOptions(seat, pending.tile, pending.from, pending.kind);
+            if (options.length) {
               await sleep(randDelay());
             }
-            const act = seat === HUMAN_SEAT ? { type: ACTIONS.PASS, seat } : this.bots[seat].decideClaim(state, seat, options);
+            const act = this.bots[seat].decideClaim(state, seat, options);
             const res = this.engine.take(act);
             this._applyEvents(res.events);
             if (!res.ok) { this.ui.toast(`响应异常：${res.error}`, 2500); break; }
-            if (seat !== HUMAN_SEAT) await sleep(250); // 多个响应之间的小间隔
+            await sleep(250); // 多个响应之间的小间隔
           }
-          if (humanPrompted) break;
           if (this.engine.pending.phase === 'claim') continue;
         } else if (pending.phase === 'idle') {
           break;
