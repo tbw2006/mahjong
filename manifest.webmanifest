@@ -1,0 +1,20 @@
+{
+  "name": "雅趣麻将 · 全平台联机",
+  "short_name": "雅趣麻将",
+  "description": "精致真实风格的麻将游戏：多玩法、自定义癞子、番倍计分、公网联机。",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#170b05",
+  "theme_color": "#1d5c3a",
+  "lang": "zh-CN",
+  "icons": [
+    {
+      "src": "assets/tiles/Back.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
