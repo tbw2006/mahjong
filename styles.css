@@ -207,6 +207,8 @@ body {
   pointer-events: none;
 }
 .tile-mini { width: var(--mini-tile-w); aspect-ratio: 3 / 4; border-radius: 3px; }
+/* 上下两条横排牌河用更大号的牌，方便看清 */
+.river-top .tile-mini, .river-bottom .tile-mini { width: 34px; border-radius: 4px; }
 .tile-mini.laizi::after { width: 10px; height: 10px; font-size: 7px; line-height: 9px; top: 1px; right: 1px; }
 .tile-meld { width: var(--meld-tile-w); aspect-ratio: 3 / 4; border-radius: 3px; }
 .tile-back { cursor: default; }
@@ -229,31 +231,11 @@ body {
   z-index: 9;
   animation: pulse-gold 1.2s ease-in-out infinite;
 }
+/* 牌河小牌不画“新”徽标，避免盖住牌面；发光 + 中央横幅足够醒目 */
+.tile-mini.last-discard::after { display: none; }
+.tile-big.last-discard::after { display: none; }
 .tile.last-discard::after {
-  content: '新';
-  position: absolute;
-  top: 1px;
-  right: 1px;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: linear-gradient(180deg, #ff5b45, #c72e1d);
-  border: 1px solid #fff0d8;
-  color: #fff;
-  font-size: 8px;
-  font-weight: 800;
-  line-height: 10px;
-  text-align: center;
-  z-index: 10;
-  pointer-events: none;
-}
-.tile-big.last-discard::after {
-  top: 2px;
-  right: 2px;
-  width: 18px;
-  height: 18px;
-  font-size: 11px;
-  line-height: 16px;
+  display: none;
 }
 @keyframes discard-pop {
   0% { filter: brightness(1.6); }
@@ -855,6 +837,7 @@ input[type="range"] { width: 120px; accent-color: #d9b56b; }
 }
 @media (max-height: 700px) {
   :root { --big-tile-w: clamp(38px, 6.5vh, 64px); --mini-tile-w: 22px; }
+  .river-top .tile-mini, .river-bottom .tile-mini { width: 26px; }
   .opp-left .tile-mini, .opp-right .tile-mini { width: 18px; }
   .opp-left .opp-backs, .opp-right .opp-backs { grid-template-columns: repeat(3, 18px); }
   /* 小屏：左右牌河 3 列紧凑排布并让开记分板/我的副露，容量 27 张不溢出 */
