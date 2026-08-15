@@ -19,15 +19,26 @@ import { ACTIONS } from './core/protocol.js';
 import { NetworkClient } from './net/network.js';
 
 const HUMAN_SEAT = 0;
-const BOT_DELAY = { min: 1100, max: 1900 }; // 机器人节奏放慢，便于观察
 const SEAT_LABELS = ['你', '下家', '对家', '上家'];
+// 机器人出牌速度档位（顶栏可选，默认慢速）
+const SPEED_DELAYS = {
+  slow: { min: 2600, max: 3800 },
+  normal: { min: 1300, max: 2100 },
+  fast: { min: 500, max: 900 },
+};
 const IS_TOUCH = new URLSearchParams(location.search).has('touch') ||
   (navigator.maxTouchPoints > 0) ||
   (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) ||
   'ontouchstart' in window;
 
 function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
-function randDelay(f = 1) { return BOT_DELAY.min + Math.random() * (BOT_DELAY.max - BOT_DELAY.min) * f; }
+function currentSpeed() {
+  try { return localStorage.getItem('mahjong-speed') || 'slow'; } catch { return 'slow'; }
+}
+function randDelay(f = 1) {
+  const d = SPEED_DELAYS[currentSpeed()] || SPEED_DELAYS.slow;
+  return d.min + Math.random() * (d.max - d.min) * f;
+}
 
 function playEventSounds(evt) {
   switch (evt.type) {

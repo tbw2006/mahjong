@@ -63,6 +63,7 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.speed-select { width: auto; padding: 5px 8px; font-size: 12px; }
 
 .btn {
   border: 1px solid var(--gold-dark);
@@ -175,7 +176,7 @@ body {
   position: relative;
   border-radius: 5px;
   flex: none;
-  filter: drop-shadow(0 3px 3px rgba(0,0,0,.45));
+  box-shadow: 0 3px 3px rgba(0, 0, 0, .45);
   transition: transform .14s ease;
 }
 .tile-big {
@@ -209,11 +210,24 @@ body {
 .tile-mini.laizi::after { width: 12px; height: 12px; font-size: 8px; line-height: 10px; top: -5px; right: -5px; }
 .tile-meld { width: var(--meld-tile-w); aspect-ratio: 3 / 4; border-radius: 3px; }
 .tile-back { cursor: default; }
-.tile.removed { opacity: .22; filter: grayscale(.9); }
+.tile.removed { opacity: .4; }
+.tile.removed[data-removed-by]::after {
+  content: attr(data-removed-by);
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 900;
+  background: rgba(0, 0, 0, .35);
+  border-radius: 3px;
+  pointer-events: none;
+}
 .tile.last-discard {
-  transform: scale(1.22);
   z-index: 9;
-  animation: discard-pop .5s cubic-bezier(.2,1.6,.4,1), pulse-gold 1.2s ease-in-out .5s infinite;
+  animation: pulse-gold 1.2s ease-in-out infinite;
 }
 .tile.last-discard::after {
   content: '新';
@@ -234,8 +248,8 @@ body {
   pointer-events: none;
 }
 @keyframes discard-pop {
-  0% { transform: scale(1.5); filter: brightness(1.6); }
-  100% { transform: scale(1.22); filter: brightness(1); }
+  0% { filter: brightness(1.6); }
+  100% { filter: brightness(1); }
 }
 .new-tile { animation: deal-in .3s ease-out; }
 
@@ -436,7 +450,6 @@ body {
   gap: 3px;
   align-items: flex-start;
   align-content: flex-start;
-  overflow: hidden;
 }
 .river-right {
   right: 11.5%;
@@ -448,7 +461,6 @@ body {
   gap: 3px;
   align-items: flex-start;
   align-content: flex-start;
-  overflow: hidden;
 }
 
 /* ---------------- 记分板 ---------------- */

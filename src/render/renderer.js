@@ -211,6 +211,7 @@ export class TableRenderer {
     }
     entries.forEach((d, i) => {
       const t = this.tileEl(d.tile, d.removed ? 'tile tile-mini removed' : 'tile tile-mini', false);
+      if (d.removed && d.removedBy) t.dataset.removedBy = d.removedBy === 'gang' ? '杠' : d.removedBy === 'pong' ? '碰' : '吃';
       // 该玩家最新一张未被碰/杠/吃走的牌始终保持高亮，直到下一次出牌
       if (i === lastActiveIdx) t.classList.add('last-discard');
       el.appendChild(t);

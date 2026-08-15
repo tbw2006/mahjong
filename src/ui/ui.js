@@ -36,6 +36,13 @@ export class GameUI {
     const btnHelp = this.$('#btn-help');
     const btnSound = this.$('#btn-sound');
     const btnHome = this.$('#btn-home');
+    const speedSelect = this.$('#speed-select');
+    if (speedSelect) {
+      try { speedSelect.value = localStorage.getItem('mahjong-speed') || 'slow'; } catch { speedSelect.value = 'slow'; }
+      speedSelect.addEventListener('change', () => {
+        try { localStorage.setItem('mahjong-speed', speedSelect.value); } catch { /* ignore */ }
+      });
+    }
     if (btnHome) btnHome.addEventListener('click', () => {
       if (this.homeHandler) this.homeHandler();
       else if (window.confirm('确定返回主菜单吗？')) { this._removeModal(); window.location.reload(); }

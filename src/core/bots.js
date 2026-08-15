@@ -26,13 +26,13 @@ export class BotPlayer {
 
     if (options.anGang.length) {
       const pick = this._pick(options.anGang);
-      if (this._gangWorth(hand, pick, 4, state.laizi, 7)) {
+      if (this._gangWorth(state, pick, 4, false)) {
         return { type: ACTIONS.AN_GANG, seat: this.seat, tile: pick };
       }
     }
     if (options.buGang.length) {
       const pick = this._pick(options.buGang);
-      if (this._gangWorth(hand, pick, 1, state.laizi, 4)) {
+      if (this._gangWorth(state, pick, 1, true)) {
         return { type: ACTIONS.BU_GANG, seat: this.seat, tile: pick };
       }
     }
@@ -42,34 +42,66 @@ export class BotPlayer {
 
   /**
    * 有人舍牌 / 补杠时决策。
+   * 核心思路：碰/杠/吃之后向听数不升（≤）才响应；吃牌选向听数改善最大的组合。
    */
   decideClaim(state, seat, options) {
     if (!options || !options.length) return { type: ACTIONS.PASS, seat };
     const hu = options.find((o) => o.claim === 'hu');
     if (hu) return { type: ACTIONS.HU, seat, tile: state.claim.tile };
 
-    const pong = options.find((o) => o.claim === 'pong');
-    const gang = options.find((o) => o.claim === 'gang');
-    const chis = options.filter((o) => o.claim === 'chi');
     const hand = state.players[seat].concealed;
+    const melds = state.players[seat].melds;
+    const laizi = state.laizi;
     const tile = state.claim.tile;
+    const before = calcShanten(hand, melds, laizi);
 
-    if (gang && this._removalWorth(hand, state.laizi, [tile, tile, tile]) >= -4) {
-      return { type: ACTIONS.GANG, seat, tile };
+    const simAfter = (removeReal, addMeld) => {
+      const arr = hand.slice();
+      for (let i = 0; i < removeReal; i++) {
+        const idx = arr.indexOf(tile);
+        if (idx >= 0) arr.splice(idx, 1);
+        else {
+          // 缺牌用癞子顶上
+          const wildIdx = arr.findIndex((t) => laizi.includes(t));
+          if (wildIdx < 0) return 99;
+          arr.splice(wildIdx, 1);
+        }
+      }
+      return calcShanten(arr, melds.concat([addMeld]), laizi);
+    };
+
+    const gang = options.find((o) => o.claim === 'gang');
+    if (gang) {
+      const after = simAfter(3, { type: 'gang', sub: 'exposed', tiles: [tile, tile, tile, tile], from: state.claim.from });
+      if (after <= before) return { type: ACTIONS.GANG, seat, tile };
     }
+    const pong = options.find((o) => o.claim === 'pong');
     if (pong) {
-      const worth = this._removalWorth(hand, state.laizi, [tile, tile]);
-      if (isHonor(tile) || worth >= -5) return { type: ACTIONS.PONG, seat, tile };
+      const after = simAfter(2, { type: 'pong', sub: 'exposed', tiles: [tile, tile, tile], from: state.claim.from });
+      if (after <= before) return { type: ACTIONS.PONG, seat, tile };
     }
+
+    const chis = options.filter((o) => o.claim === 'chi');
     if (chis.length) {
       let best = null;
-      let bestWorth = -Infinity;
+      let bestAfter = 99;
       for (const chi of chis) {
-        const removed = [chi.a, chi.b].filter((t) => hand.includes(t));
-        const worth = this._removalWorth(hand, state.laizi, removed);
-        if (worth > bestWorth) { bestWorth = worth; best = chi; }
+        const arr = hand.slice();
+        let ok = true;
+        for (const t of [chi.a, chi.b]) {
+          const idx = arr.indexOf(t);
+          if (idx >= 0) arr.splice(idx, 1);
+          else {
+            const wildIdx = arr.findIndex((x) => laizi.includes(x));
+            if (wildIdx < 0) { ok = false; break; }
+            arr.splice(wildIdx, 1);
+          }
+        }
+        if (!ok) continue;
+        const afterChi = calcShanten(arr, melds.concat([{ type: 'chi', sub: 'exposed', tiles: [tile, chi.a, chi.b].sort((a, b) => a - b), from: state.claim.from }]), laizi);
+        if (afterChi < bestAfter) { bestAfter = afterChi; best = chi; }
       }
-      if (best && bestWorth >= -6 && this.rng() < 0.55) {
+      if (best && bestAfter < before) {
         return { type: ACTIONS.CHI, seat, tile, a: best.a, b: best.b };
       }
     }
@@ -81,66 +113,62 @@ export class BotPlayer {
     return list[Math.floor(this.rng() * list.length)];
   }
 
-  /** 杠是否划算：杠后手牌损失不大才杠 */
-  _gangWorth(hand, tile, removeCount, laizi, threshold) {
-    const removed = new Array(removeCount).fill(tile);
-    return this._removalWorth(hand, laizi, removed) >= -threshold;
-  }
-
-  _removalWorth(hand, laizi, removed) {
-    const before = handUtility(hand, laizi);
+  /** 杠是否划算：杠后向听数不能变差 */
+  _gangWorth(state, tile, removeCount, isBuGang) {
+    const hand = state.players[this.seat].concealed;
+    const melds = state.players[this.seat].melds;
+    const laizi = state.laizi;
+    const before = calcShanten(hand, melds, laizi);
     const arr = hand.slice();
-    for (const t of removed) {
-      const i = arr.indexOf(t);
-      if (i >= 0) arr.splice(i, 1);
+    for (let i = 0; i < removeCount; i++) {
+      const idx = arr.indexOf(tile);
+      if (idx < 0) return false;
+      arr.splice(idx, 1);
     }
-    return handUtility(arr, laizi) - before;
+    let nextMelds;
+    if (isBuGang) {
+      nextMelds = melds.map((m) => (m.type === 'pong' && m.tiles[0] === tile
+        ? { ...m, type: 'gang', sub: 'bu', tiles: [...m.tiles, tile] }
+        : m));
+    } else {
+      nextMelds = melds.concat([{ type: 'gang', sub: 'an', tiles: [tile, tile, tile, tile], from: null }]);
+    }
+    return calcShanten(arr, nextMelds, laizi) <= before;
   }
 
   /**
-   * 出牌：以“向听数”最小为第一原则（尽快听牌），再按牌效率择优。
+   * 出牌：向听数最小优先；对手已听牌时，优先打安全牌（对手打过的牌）。
    */
   chooseDiscard(state) {
     const hand = state.players[this.seat].concealed;
     const melds = state.players[this.seat].melds;
     const laizi = state.laizi;
-    const candidates = [...new Set(hand)];
+    const candidates = [...new Set(hand)].filter((t) => !laizi.includes(t));
     if (!candidates.length) return { type: ACTIONS.DISCARD, seat: this.seat, tile: hand[0] };
 
-    let best = candidates[0];
-    let bestShanten = Infinity;
-    let bestUtility = Infinity;
-
-    // 先用廉价的价值函数筛掉明显不该丢的牌，只对最差候选计算精确向听数
-    let ranked = candidates
-      .filter((t) => !laizi.includes(t))
-      .map((tile) => {
-        const arr = hand.slice();
-        arr.splice(arr.indexOf(tile), 1);
-        return { tile, utility: handUtility(arr, laizi) + tiebreak(tile, hand, laizi) };
-      })
-      .sort((a, b) => a.utility - b.utility);
-
-    // 缺一门玩法（如四川）：优先丢牌数最少的那一门
-    if (state.rules && state.rules.requiredQueYiMen) {
-      const suitCount = [0, 0, 0];
-      for (const t of hand) {
-        if (!laizi.includes(t) && suitOf(t) < 3) suitCount[suitOf(t)]++;
-      }
-      ranked = ranked
-        .map((item) => ({ ...item, suitRank: suitCount[suitOf(item.tile)] * 100 }))
-        .sort((a, b) => a.suitRank + a.utility - (b.suitRank + b.utility));
+    // 判断是否有对手已经听牌（向听数 ≤ 0）
+    const dangerSeats = [];
+    for (let s = 0; s < 4; s++) {
+      if (s === this.seat) continue;
+      const p = state.players[s];
+      if (!p) continue;
+      if (calcShanten(p.concealed, p.melds, laizi) <= 0) dangerSeats.push(s);
     }
-    ranked = ranked.slice(0, 8);
-    const pool = ranked.length ? ranked : candidates.filter((t) => !laizi.includes(t)).slice(0, 1).map((t) => ({ tile: t, utility: 0 }));
-    for (const item of pool) {
+    const safeForAllDanger = (tile) => dangerSeats.length === 0 || dangerSeats.every((s) =>
+      state.discardPool.some((d) => d.seat === s && d.tile === tile && !d.removed));
+
+    let best = candidates[0];
+    let bestScore = Infinity;
+    for (const tile of candidates) {
       const arr = hand.slice();
-      arr.splice(arr.indexOf(item.tile), 1);
-      const shanten = calcShanten(arr, melds, laizi);
-      if (shanten < bestShanten || (shanten === bestShanten && item.utility < bestUtility)) {
-        bestShanten = shanten;
-        bestUtility = item.utility;
-        best = item.tile;
+      arr.splice(arr.indexOf(tile), 1);
+      let score = calcShanten(arr, melds, laizi);
+      if (dangerSeats.length && !safeForAllDanger(tile)) score += 6; // 危险张尽量不打
+      // 相同向听数时：优先丢孤张/字牌/幺九
+      score += tiebreak(tile, hand, laizi) * 0.01;
+      if (score < bestScore) {
+        bestScore = score;
+        best = tile;
       }
     }
     return { type: ACTIONS.DISCARD, seat: this.seat, tile: best };

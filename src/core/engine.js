@@ -559,7 +559,10 @@ export class MahjongEngine {
 
     // 标记牌河中的被响应牌
     const entry = s.claim.poolEntry || [...s.discardPool].reverse().find((e) => !e.removed && e.tile === tile && e.seat === s.claim.from);
-    if (entry) entry.removed = true;
+    if (entry) {
+      entry.removed = true;
+      entry.removedBy = act.type === ACTIONS.GANG ? 'gang' : act.type === ACTIONS.PONG ? 'pong' : 'chi';
+    }
 
     let meld = null;
     if (act.type === ACTIONS.PONG) {

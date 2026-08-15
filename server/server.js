@@ -224,7 +224,7 @@ function isBotish(room, seat) {
   return !p || p.isBot || !p.connected || p.managedByBot;
 }
 
-function scheduleBotTurn(room, seat, delay = 1000 + Math.random() * 900) {
+function scheduleBotTurn(room, seat, delay = 2200 + Math.random() * 1400) {
   if (room.timers[seat]) return;
   room.timers[seat] = setTimeout(() => {
     delete room.timers[seat];
@@ -239,7 +239,7 @@ function scheduleBotTurn(room, seat, delay = 1000 + Math.random() * 900) {
   }, delay);
 }
 
-function scheduleBotClaim(room, seat, delay = 700 + Math.random() * 600) {
+function scheduleBotClaim(room, seat, delay = 1200 + Math.random() * 900) {
   if (room.timers[seat]) return;
   room.timers[seat] = setTimeout(() => {
     delete room.timers[seat];
